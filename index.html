@@ -1,0 +1,1589 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#f7f2e6">
+<title>あてる順</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=DotGothic16&family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f7f2e6;
+    --paper-2: #fffcf4;
+    --ink: #262422;
+    --ink-soft: #6f6a62;
+    --ink-faint: #26242461;
+    --line: #2624221f;
+
+    /* リソグラフの刷り色 */
+    --pink: #ff4fa3;
+    --pink-soft: #ffc4df;
+    --yellow: #ffe23d;
+    --yellow-soft: #fff3a8;
+    --blue: #1f7ac4;
+    --blue-soft: #bcdaf2;
+
+    --done: #d8d2c5;
+
+    --f-head: "Dela Gothic One", "Hiragino Sans", "Yu Gothic", sans-serif;
+    --f-body: "Zen Kaku Gothic New", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    --f-dot: "DotGothic16", "Hiragino Sans", monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-weight: 700;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    overflow: hidden;
+  }
+  /* 紙のざらつき */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 100;
+    opacity: .55;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35  0 0 0 0 .3  0 0 0 0 .22  0 0 0 .14 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+  button { font: inherit; color: inherit; touch-action: manipulation; }
+  input, textarea { font: inherit; color: inherit; -webkit-user-select: text; user-select: text; }
+
+  .app {
+    height: 100%;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    padding: max(14px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+    gap: 14px;
+  }
+
+  /* ---------- ヘッダー ---------- */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .brand { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+  h1 {
+    margin: 0;
+    font-family: var(--f-head);
+    font-weight: 400;
+    font-size: 34px;
+    line-height: 1;
+    letter-spacing: .04em;
+    white-space: nowrap;
+    text-shadow: 3px 2px 0 var(--pink);
+  }
+  .sub {
+    font-family: var(--f-dot);
+    font-size: 15px;
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
+
+  .tabs { display: flex; gap: 10px; }
+  .tab {
+    border: 3px solid var(--ink);
+    background: var(--paper-2);
+    padding: 0 18px;
+    min-height: 54px;
+    border-radius: 12px;
+    font-size: 18px;
+    font-weight: 900;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    box-shadow: 0 4px 0 var(--ink);
+    transform: translateY(-2px);
+  }
+  .tab .no {
+    font-family: var(--f-head);
+    font-weight: 400;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    border: 2.5px solid var(--ink);
+    display: grid; place-items: center;
+    font-size: 15px;
+    line-height: 1;
+    flex: none;
+  }
+  .tab.on {
+    background: var(--blue);
+    color: #fff;
+    box-shadow: 0 0 0 var(--ink);
+    transform: translateY(2px);
+  }
+  .tab.on .no { border-color: #fff; background: #fff; color: var(--blue); }
+
+  /* ---------- 本体 ---------- */
+  main {
+    min-height: 0;
+    display: grid;
+    gap: 18px;
+    grid-template-columns: 1fr 300px;
+  }
+
+  /* 教室（座席表の紙） */
+  .room {
+    position: relative;
+    min-height: 0;
+    background: var(--paper-2);
+    border: 3px solid var(--ink);
+    border-radius: 16px 20px 14px 22px;
+    box-shadow: 6px 6px 0 var(--blue-soft);
+    padding: 26px 22px 16px;
+    display: flex;
+    flex-direction: column;
+  }
+  .room-tag {
+    position: absolute;
+    top: -13px; left: 22px;
+    background: var(--yellow);
+    border: 2.5px solid var(--ink);
+    border-radius: 6px;
+    padding: 2px 12px;
+    font-family: var(--f-dot);
+    font-size: 15px;
+    transform: rotate(-2deg);
+  }
+  .stage {
+    flex: 1;
+    min-height: 0;
+    container-type: size;
+    display: grid;
+    place-items: center;
+  }
+  /* --ar（横÷縦）・--ce（机の列の数）は並びに合わせて JS で入れる */
+  .board {
+    --bw: min(100cqw, calc(100cqh * var(--ar, 1.32)));
+    --u: calc(var(--bw) * 6 / var(--ce, 6));      /* 6列のときの大きさを1とした目安 */
+    width: var(--bw);
+    aspect-ratio: var(--ar, 1.32);
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--u) * .03);
+  }
+  .board.flip .kyoutaku { order: -1; }
+  .seats {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    gap: calc(var(--u) * .02) calc(var(--u) * .022);
+  }
+
+  /* 1席 */
+  .seat {
+    position: relative;
+    border: 0;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    display: flex;
+    min-height: 0;
+    min-width: 0;
+  }
+  .desk {
+    position: relative;
+    width: 100%;
+    border: 3px solid var(--ink);
+    border-radius: 7px;
+    background-color: #fffaf0;
+    background-image: radial-gradient(#e8dcc0 1.2px, transparent 1.6px);
+    background-size: 7px 7px;
+    box-shadow: 4px 4px 0 var(--line);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: calc(var(--u) * .004);
+    padding: 4px 5px;
+    min-width: 0;
+    transition: background-color .2s, transform .12s, opacity .2s;
+  }
+  .seat:active .desk { transform: scale(.95); }
+
+  .nm {
+    font-size: calc(var(--u) * .021);
+    font-weight: 900;
+    line-height: 1.2;
+    text-align: center;
+    max-width: 100%;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    word-break: break-all;
+  }
+  .seat.plain .nm { color: var(--ink-soft); }
+
+  /* じゅんび：出席番号 */
+  .pno {
+    font-family: var(--f-head);
+    font-size: calc(var(--u) * .032);
+    line-height: 1;
+    color: var(--blue);
+  }
+  .plus {
+    font-size: calc(var(--u) * .03);
+    color: var(--ink-faint);
+    line-height: 1;
+  }
+  .seat.blank .desk {
+    background: transparent;
+    border: 2.5px dashed var(--ink-faint);
+    box-shadow: none;
+  }
+
+  /* 順番を決める：番号つき */
+  .num {
+    font-family: var(--f-head);
+    font-size: calc(var(--u) * .046);
+    line-height: 1;
+    color: #fff;
+    text-shadow: 2px 2px 0 var(--ink);
+  }
+  .seat.picked .desk {
+    background-color: var(--blue);
+    background-image: radial-gradient(#ffffff26 1.3px, transparent 1.7px);
+    box-shadow: 5px 5px 0 var(--pink);
+  }
+  .seat.picked .nm { color: #fff; }
+  .seat.focus .desk {
+    outline: 5px solid var(--yellow);
+    outline-offset: 2px;
+  }
+
+  /* メモのしるし（机の右下） */
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 3px;
+    margin-top: 2px;
+  }
+  .tags:empty { display: none; }
+  .tg {
+    font-size: calc(var(--u) * .013 + 3px);
+    line-height: 1.15;
+    background: var(--yellow);
+    border: 1.5px solid var(--ink);
+    border-radius: 4px;
+    padding: 1px 4px;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  .tg.g { background: var(--pink-soft); }
+  .tg.m { background: #fff; }
+
+  /* 当てていく：小さい番号 */
+  .tiny {
+    position: absolute;
+    top: 4px; left: 6px;
+    font-family: var(--f-dot);
+    font-size: calc(var(--u) * .018 + 4px);
+    line-height: 1;
+    color: var(--ink-soft);
+  }
+  .no-tap .seat { cursor: default; }
+  .no-tap .seat:active .desk { transform: none; }
+
+  /* 選んでいない席 */
+  .seat.off .desk {
+    background: transparent;
+    border: 2.5px dashed var(--ink-faint);
+    box-shadow: none;
+  }
+  .seat.off .nm { color: var(--ink-faint); }
+
+  /* もう当てた席 */
+  .seat.done .desk {
+    background-color: var(--done);
+    background-image: repeating-linear-gradient(135deg, #26242418 0 3px, transparent 3px 9px);
+    border-color: #8f897e;
+    box-shadow: none;
+    opacity: .7;
+  }
+  .seat.done .tiny, .seat.done .nm { color: #6a645b; }
+  .stamp {
+    position: absolute;
+    top: 4px; right: 5px;
+    font-weight: 900;
+    font-size: calc(var(--u) * .016 + 2px);
+    width: calc(var(--u) * .036);
+    height: calc(var(--u) * .036);
+    border: 2px solid #6a645b;
+    color: #6a645b;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    line-height: 1;
+    transform: rotate(-14deg);
+  }
+
+  /* 次に当てる席：光る */
+  .seat.now { z-index: 2; }
+  .seat.now .desk {
+    background-color: var(--yellow);
+    background-image: radial-gradient(#ff4fa340 1.4px, transparent 1.8px);
+    border-color: var(--ink);
+    border-width: 4px;
+    box-shadow: 0 0 0 5px var(--pink);
+    animation: pop 1.3s ease-in-out infinite;
+  }
+  .seat.now .desk::before,
+  .seat.now .desk::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border-radius: 12px;
+    border: 5px solid var(--pink);
+    animation: ring 1.3s ease-out infinite;
+    pointer-events: none;
+  }
+  .seat.now .desk::after { animation-delay: .65s; }
+  .seat.now .tiny { color: var(--ink); }
+  @keyframes pop {
+    0%, 100% { transform: scale(1); background-color: var(--yellow); }
+    50%      { transform: scale(1.08); background-color: #fff6a0; }
+  }
+  @keyframes ring {
+    0%   { transform: scale(1);    opacity: .9; }
+    100% { transform: scale(1.4);  opacity: 0; }
+  }
+
+  /* 机をおかない場所 */
+  .seat.gone { visibility: hidden; pointer-events: none; }
+  .prep-mode .seat.gone { visibility: visible; pointer-events: auto; }
+  .prep-mode .seat.gone .desk {
+    background: transparent;
+    border: 2px dotted var(--ink-faint);
+    box-shadow: none;
+  }
+  .gone-tx { font-size: calc(var(--u) * .016 + 3px); color: var(--ink-faint); font-weight: 900; }
+
+  /* 上下反対ボタン */
+  .flip-btn {
+    position: absolute;
+    top: -15px; right: 20px;
+    z-index: 3;
+    border: 2.5px solid var(--ink);
+    border-radius: 8px;
+    background: var(--paper-2);
+    font-size: 14px;
+    font-weight: 900;
+    padding: 4px 12px;
+    min-height: 34px;
+    cursor: pointer;
+    box-shadow: 0 3px 0 var(--ink);
+  }
+  .flip-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+  .flip-btn.on { background: var(--blue); color: #fff; }
+
+  /* 並びのカード */
+  .lay-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .lay-row .lname { font-size: 15px; font-weight: 900; }
+  .lay-row .lname small { display: block; font-size: 12px; color: var(--ink-soft); font-weight: 500; }
+  .stepper { display: flex; align-items: center; gap: 6px; }
+  .stepper .btn-sm { width: 46px; padding: 0; font-size: 22px; }
+  .stepper b { font-family: var(--f-head); font-weight: 400; font-size: 26px; min-width: 34px; text-align: center; }
+  .toggle {
+    width: 100%;
+    min-height: 46px;
+    border: 2.5px solid var(--ink);
+    border-radius: 12px;
+    background: var(--paper-2);
+    font-size: 15px;
+    font-weight: 900;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .toggle .box {
+    width: 22px; height: 22px; border: 2.5px solid var(--ink); border-radius: 6px;
+    display: grid; place-items: center; font-size: 15px; line-height: 1; background: #fff;
+  }
+  .toggle.on { background: var(--yellow-soft); }
+  .toggle.on .box { background: var(--ink); color: var(--yellow); }
+  .lay-note { font-size: 13px; color: var(--ink-soft); font-weight: 500; line-height: 1.6; margin: 0; }
+
+  /* 教卓 */
+  .kyoutaku {
+    align-self: center;
+    width: min(100%, calc(var(--u) * .3));
+    height: calc(var(--u) * .076);
+    flex: none;
+    background: var(--ink);
+    border-radius: 8px;
+    box-shadow: 5px 5px 0 var(--yellow);
+    color: var(--paper-2);
+    font-weight: 900;
+    font-size: calc(var(--u) * .026);
+    letter-spacing: .5em;
+    padding-left: .5em;
+    display: grid;
+    place-items: center;
+  }
+
+  /* ---------- 操作パネル ---------- */
+  .panel {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 0;
+  }
+  .card {
+    position: relative;
+    background: var(--paper-2);
+    border: 3px solid var(--ink);
+    border-radius: 14px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+  }
+  .label {
+    font-family: var(--f-dot);
+    font-size: 15px;
+    color: var(--ink-soft);
+  }
+  .count {
+    font-family: var(--f-head);
+    font-size: 56px;
+    line-height: 1;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .count .big { text-shadow: 3px 3px 0 var(--pink-soft); }
+  .count small {
+    font-family: var(--f-body);
+    font-weight: 900;
+    font-size: 19px;
+  }
+  .hint {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--ink-soft);
+    line-height: 1.7;
+    margin: 0;
+  }
+  .hint b { color: var(--ink); font-weight: 900; }
+
+  /* 小さい数のカード（えらんだ人数など） */
+  .mini {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .mini .count { font-size: 38px; }
+  .mini .count small { font-size: 17px; }
+
+  .btn {
+    border: 3px solid var(--ink);
+    border-radius: 16px;
+    font-weight: 900;
+    cursor: pointer;
+    min-height: 56px;
+    padding: 8px 14px;
+    box-shadow: 0 6px 0 var(--ink);
+    margin-bottom: 6px;
+    transition: transform .06s, box-shadow .06s;
+  }
+  .btn:active { transform: translateY(5px); box-shadow: 0 1px 0 var(--ink); }
+  .btn:disabled { opacity: .35; cursor: default; }
+  .btn:disabled:active { transform: none; box-shadow: 0 6px 0 var(--ink); }
+
+  .btn-sm {
+    min-height: 46px;
+    border-radius: 12px;
+    font-size: 15px;
+    padding: 6px 12px;
+    box-shadow: 0 4px 0 var(--ink);
+    margin-bottom: 4px;
+    background: var(--paper-2);
+  }
+  .btn-sm:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+  .btn-sm:disabled:active { box-shadow: 0 4px 0 var(--ink); }
+  .btn-red { color: #d6337f; }
+  .btn-blue { background: var(--blue); color: #fff; }
+  .btn-yellow { background: var(--yellow); }
+  .btn-wide { width: 100%; }
+
+  .btn-next {
+    flex: 1;
+    min-height: 110px;
+    background: var(--yellow);
+    background-image: radial-gradient(#ff4fa333 1.6px, transparent 2px);
+    background-size: 9px 9px;
+    font-family: var(--f-head);
+    font-weight: 400;
+    font-size: 44px;
+    letter-spacing: .12em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+  }
+  .btn-next .arrow {
+    font-family: var(--f-body);
+    font-size: 28px;
+    width: 50px; height: 50px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--yellow);
+    display: grid; place-items: center;
+    letter-spacing: 0;
+  }
+  .btn-again {
+    flex: 1;
+    min-height: 110px;
+    background: var(--blue);
+    color: #fff;
+    font-size: 28px;
+  }
+
+  /* 進み具合の点 */
+  .dots { display: flex; flex-wrap: wrap; gap: 5px; }
+  .dots i {
+    width: 13px; height: 13px;
+    border-radius: 50%;
+    border: 2px solid var(--ink);
+    background: var(--paper-2);
+  }
+  .dots i.d { background: var(--done); border-color: #8f897e; }
+  .dots i.n { background: var(--pink); }
+
+  /* 当てている人のカード */
+  .person { gap: 6px; }
+  .p-head { display: flex; align-items: center; gap: 10px; }
+  .badge {
+    flex: none;
+    font-family: var(--f-head);
+    font-size: 20px;
+    min-width: 40px; height: 40px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: var(--pink);
+    color: #fff;
+    border: 2.5px solid var(--ink);
+    display: grid; place-items: center;
+    line-height: 1;
+  }
+  .p-name {
+    font-size: 26px;
+    font-weight: 900;
+    line-height: 1.2;
+    word-break: break-all;
+  }
+  .p-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .p-tags .tg { font-size: 16px; padding: 3px 8px; border-width: 2px; border-radius: 6px; }
+  .p-memo {
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.5;
+    background: var(--yellow-soft);
+    border-radius: 8px;
+    padding: 6px 10px;
+    word-break: break-all;
+  }
+  .p-next {
+    font-size: 14px;
+    color: var(--ink-soft);
+    border-top: 2px dashed var(--line);
+    padding-top: 8px;
+    margin-top: 2px;
+  }
+  .p-next b { color: var(--ink); font-weight: 900; font-size: 16px; }
+
+  /* メモを書くカード */
+  .editor { gap: 6px; }
+  .chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); gap: 6px; }
+  .chips.k { grid-template-columns: repeat(5, 1fr); }
+  .chips.g { grid-template-columns: repeat(6, 1fr); }
+  .chip {
+    min-width: 0;
+    min-height: 46px;
+    padding: 4px 2px;
+    border: 2.5px solid var(--ink);
+    border-radius: 10px;
+    background: var(--paper-2);
+    font-weight: 900;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  .chip.on { background: var(--yellow); box-shadow: inset 0 -4px 0 #0000001a; }
+  .chips.g .chip { font-size: 21px; }
+  .chips.g .chip.on { background: var(--pink); color: #fff; }
+  .memo-in {
+    width: 100%;
+    min-height: 46px;
+    border: 2.5px solid var(--ink);
+    border-radius: 10px;
+    background: #fff;
+    padding: 8px 10px;
+    font-size: 16px;
+    font-weight: 700;
+    margin-top: 2px;
+  }
+  .memo-in:focus { outline: 4px solid var(--blue-soft); }
+
+  /* 順番の一覧 */
+  .list { flex: 1; padding: 10px; overflow: hidden; }
+  .list-in { overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 4px; min-height: 0; flex: 1; }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 0;
+    background: transparent;
+    border-radius: 9px;
+    padding: 6px 8px;
+    text-align: left;
+    cursor: pointer;
+    min-height: 40px;
+  }
+  .row.on { background: var(--yellow-soft); outline: 2.5px solid var(--ink); }
+  .row .rn {
+    flex: none;
+    font-family: var(--f-head);
+    font-size: 15px;
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    background: var(--blue);
+    color: #fff;
+    display: grid; place-items: center;
+  }
+  .row .rname { flex: 1; min-width: 0; font-size: 16px; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .tg { font-size: 12px; }
+  .empty-list { font-size: 14px; color: var(--ink-soft); font-weight: 500; padding: 4px 6px; }
+
+  .owari-card { align-items: center; justify-content: center; min-height: 120px; }
+  .owari {
+    font-family: var(--f-head);
+    font-size: 50px;
+    letter-spacing: .14em;
+    padding-left: .14em;
+    color: var(--pink);
+    text-shadow: 3px 3px 0 var(--ink);
+    transform: rotate(-4deg);
+  }
+
+  .steps { display: flex; flex-direction: column; gap: 10px; }
+  .step { display: flex; gap: 10px; align-items: flex-start; }
+  .step .sn {
+    flex: none;
+    font-family: var(--f-head);
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--yellow);
+    display: grid; place-items: center;
+    font-size: 14px;
+    margin-top: 2px;
+  }
+  .step p { margin: 0; font-size: 15px; line-height: 1.6; font-weight: 500; color: var(--ink-soft); }
+  .step p b { color: var(--ink); font-weight: 900; }
+
+  .hidden { display: none !important; }
+
+  /* ---------- 縦向き ---------- */
+  @media (orientation: portrait) {
+    .sub { display: none; }
+    .tab { padding: 0 12px; font-size: 16px; }
+    h1 { font-size: 30px; }
+    main { grid-template-columns: 1fr; grid-template-rows: auto auto; align-content: center; gap: 22px; }
+    .room { flex: none; }
+    .stage { flex: none; aspect-ratio: var(--ar, 1.32); }
+
+    .panel { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+    #panelSelect { grid-template-rows: auto 1fr; }
+    #panelSelect .mini { grid-column: 1; grid-row: 1; }
+    #panelSelect .editor { grid-column: 1; grid-row: 2; }
+    #panelSelect .list { grid-column: 2; grid-row: 1 / 3; align-self: stretch; max-height: 470px; }
+    #panelCheck { grid-template-columns: 1fr 1fr; }
+    #panelCheck > .card { grid-column: 1; }
+    #panelCheck > .btn-next, #panelCheck > .btn-again { grid-column: 2; grid-row: 1 / 3; align-self: stretch; }
+    #panelCheck > .btn-sub-wrap { grid-column: 2; }
+  }
+
+  /* ---------- ダイアログ ---------- */
+  .modal {
+    position: fixed;
+    inset: 0;
+    background: #26242466;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    z-index: 40;
+  }
+  .modal-box {
+    background: var(--paper-2);
+    border: 3px solid var(--ink);
+    border-radius: 18px;
+    box-shadow: 8px 8px 0 var(--pink);
+    padding: 26px 24px 18px;
+    width: min(440px, 100%);
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  .modal-box h2 {
+    margin: 0 0 14px;
+    font-family: var(--f-head);
+    font-weight: 400;
+    font-size: 24px;
+    line-height: 1.2;
+  }
+  .confirm-box { text-align: center; }
+  .confirm-box p { font-size: 21px; font-weight: 900; margin: 0 0 22px; line-height: 1.6; }
+  .modal-btns { display: flex; gap: 12px; }
+  .modal-btns .btn { flex: 1; font-size: 18px; }
+  .btn-cancel { background: var(--paper-2); color: var(--ink-soft); }
+  .btn-danger { background: var(--pink); color: #fff; }
+
+  /* 出席番号えらび */
+  .picker-box { width: min(720px, 100%); }
+  .suggest {
+    width: 100%;
+    min-height: 66px;
+    font-size: 22px;
+    background: var(--yellow);
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    margin-bottom: 14px;
+  }
+  .suggest .sno { font-family: var(--f-head); font-weight: 400; font-size: 28px; }
+  .pick-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+    gap: 8px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 4px 4px 8px;
+    min-height: 0;
+    flex: 1;
+  }
+  .pk {
+    min-height: 58px;
+    border: 2.5px solid var(--ink);
+    border-radius: 10px;
+    background: #fff;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px;
+    padding: 4px;
+    cursor: pointer;
+  }
+  .pk .pkn { font-family: var(--f-head); font-size: 18px; line-height: 1; color: var(--blue); }
+  .pk .pkm { font-size: 13px; font-weight: 900; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pk.used { background: var(--done); border-color: #8f897e; opacity: .6; }
+  .pk.here { background: var(--blue); color: #fff; }
+  .pk.here .pkn { color: #fff; }
+  .picker-foot { display: flex; gap: 12px; margin-top: 12px; }
+  .picker-foot .btn { flex: 1; font-size: 17px; }
+  .picker-foot .btn-gone { background: var(--paper-2); color: var(--ink-soft); }
+  .picker-note { font-size: 13px; color: var(--ink-soft); font-weight: 500; margin: 0 0 8px; }
+
+  /* 名簿 */
+  .roster-box { width: min(900px, 100%); height: 100%; }
+  .roster-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+  .roster-top h2 { margin: 0; }
+  .roster-scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 4px 10px; }
+  .roster-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 8px 16px;
+  }
+  .rrow { display: flex; align-items: center; gap: 8px; }
+  .rrow .rno {
+    flex: none;
+    width: 40px;
+    font-family: var(--f-head);
+    font-size: 18px;
+    color: var(--blue);
+    text-align: right;
+  }
+  .rrow input {
+    flex: 1;
+    min-width: 0;
+    min-height: 46px;
+    border: 2.5px solid var(--ink);
+    border-radius: 10px;
+    background: #fff;
+    padding: 6px 10px;
+    font-size: 17px;
+    font-weight: 700;
+  }
+  .rrow input:focus, .sec input:focus, .paste textarea:focus { outline: 4px solid var(--blue-soft); }
+  .roster-bar { display: flex; gap: 14px; align-items: stretch; margin-bottom: 10px; flex-wrap: wrap; }
+  .rcount {
+    display: flex; align-items: center; gap: 10px;
+    border: 2.5px solid var(--ink); border-radius: 12px;
+    padding: 6px 12px; background: #fff;
+  }
+  .rcount .step { width: 54px; min-height: 50px; font-size: 26px; padding: 0; margin-bottom: 4px; }
+  .rnum { font-size: 17px; min-width: 72px; text-align: center; }
+  .rnum b { font-family: var(--f-head); font-weight: 400; font-size: 30px; margin-right: 2px; }
+  .paste-tip {
+    flex: 1; min-width: 260px;
+    background: var(--yellow-soft);
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 15px; font-weight: 500; line-height: 1.6;
+    display: flex; align-items: center;
+  }
+  .paste-tip b { font-weight: 900; }
+  .paste-msg {
+    background: var(--blue); color: #fff;
+    border-radius: 10px; padding: 8px 14px; margin-bottom: 10px;
+    font-size: 15px; font-weight: 900;
+  }
+  #confirm { z-index: 60; }
+  .roster-tools { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0 4px; }
+  .paste { margin-top: 10px; }
+  .paste textarea {
+    width: 100%;
+    height: 180px;
+    border: 2.5px solid var(--ink);
+    border-radius: 10px;
+    background: #fff;
+    padding: 10px;
+    font-size: 16px;
+    font-weight: 500;
+    resize: vertical;
+  }
+  .sec {
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 2px dashed var(--line);
+  }
+  .sec h3 { margin: 0 0 8px; font-size: 18px; font-weight: 900; }
+  .sec label { display: block; font-size: 14px; color: var(--ink-soft); margin: 10px 0 4px; }
+  .sec input {
+    width: 100%;
+    min-height: 46px;
+    border: 2.5px solid var(--ink);
+    border-radius: 10px;
+    background: #fff;
+    padding: 6px 10px;
+    font-size: 17px;
+    font-weight: 700;
+  }
+  .note { font-size: 13px; color: var(--ink-soft); font-weight: 500; margin: 6px 0 0; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <h1>あてる順</h1>
+      <span class="sub">せきの じゅんばん</span>
+    </div>
+    <div class="tabs" role="tablist">
+      <button class="tab" data-mode="prep" role="tab"><span class="no">1</span>じゅんび</button>
+      <button class="tab" data-mode="select" role="tab"><span class="no">2</span>順番を決める</button>
+      <button class="tab" data-mode="check" role="tab"><span class="no">3</span>当てていく</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="room" id="room">
+      <span class="room-tag">ざせき表</span>
+      <button class="flip-btn" id="flipBtn">⇅ 上下反対</button>
+      <div class="stage">
+        <div class="board" id="board">
+          <div class="seats" id="seats"></div>
+          <div class="kyoutaku">教卓</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 1 じゅんび -->
+    <aside class="panel" id="panelPrep">
+      <div class="card">
+        <div class="label">座席の並び</div>
+        <div class="lay-row">
+          <span class="lname">よこ<small>列の数</small></span>
+          <span class="stepper"><button class="btn btn-sm" id="colsMinus">−</button><b id="colsNum">6</b><button class="btn btn-sm" id="colsPlus">＋</button></span>
+        </div>
+        <div class="lay-row">
+          <span class="lname">たて<small>行の数</small></span>
+          <span class="stepper"><button class="btn btn-sm" id="rowsLMinus">−</button><b id="rowsLNum">4</b><button class="btn btn-sm" id="rowsLPlus">＋</button></span>
+        </div>
+        <button class="toggle" id="pairBtn"><span class="box"></span>2人ずつ並べる</button>
+        <p class="lay-note">机をおかない場所は、席をタップして「机をなくす」。</p>
+      </div>
+      <button class="btn btn-blue" id="rosterBtn" style="font-size:20px">名簿を入力</button>
+      <div class="card mini">
+        <div>
+          <div class="label">名簿</div>
+          <div class="count"><span class="big" id="rosterCount">0</span><small>人</small></div>
+        </div>
+        <div>
+          <div class="label">番号をふった席</div>
+          <div class="count"><span class="big" id="seatCount">0</span><small>席</small></div>
+        </div>
+      </div>
+      <button class="btn btn-sm btn-red btn-wide" id="clearSeatsBtn">席の番号を全部外す</button>
+    </aside>
+
+    <!-- 2 順番を決める -->
+    <aside class="panel hidden" id="panelSelect">
+      <div class="card mini">
+        <div>
+          <div class="label">えらんだ人数</div>
+          <div class="count"><span class="big" id="pickedCount">0</span><small>人</small></div>
+        </div>
+        <button class="btn btn-sm btn-red" id="resetBtn">全部リセット</button>
+      </div>
+      <div class="card editor" id="editor"></div>
+      <div class="card list">
+        <div class="label">当てる順</div>
+        <div class="list-in" id="orderList"></div>
+      </div>
+    </aside>
+
+    <!-- 3 当てていく -->
+    <aside class="panel hidden" id="panelCheck">
+      <div class="card" id="progressCard">
+        <div class="label">いま</div>
+        <div class="count"><span class="big" id="nowNum">1</span><small>/ <span id="totalNum">0</span> 人目</small></div>
+        <div class="dots" id="dots"></div>
+      </div>
+      <div class="card person" id="personCard"></div>
+      <div class="card hidden" id="emptyCard">
+        <div class="label">まだ順番がありません</div>
+        <p class="hint">「<b>2 順番を決める</b>」で<br>座席をタップしてください。</p>
+      </div>
+      <div class="card owari-card hidden" id="owariCard">
+        <div class="owari">おわり</div>
+      </div>
+      <button class="btn btn-next" id="nextBtn">次へ<span class="arrow">→</span></button>
+      <button class="btn btn-again hidden" id="againBtn">最初から</button>
+      <div class="btn-sub-wrap">
+        <button class="btn btn-sm btn-wide" id="backBtn">← ひとつ戻る</button>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<!-- 確認ダイアログ -->
+<div class="modal hidden" id="confirm">
+  <div class="modal-box confirm-box">
+    <p id="confirmMsg"></p>
+    <div class="modal-btns">
+      <button class="btn btn-cancel" id="cancelBtn">やめる</button>
+      <button class="btn btn-danger" id="okBtn">消す</button>
+    </div>
+  </div>
+</div>
+
+<!-- 出席番号えらび -->
+<div class="modal hidden" id="picker">
+  <div class="modal-box picker-box">
+    <h2>この席の出席番号</h2>
+    <button class="btn suggest" id="suggestBtn"></button>
+    <p class="picker-note">ほかの席で使っている番号をえらぶと、こちらの席へ移ります。</p>
+    <div class="pick-grid" id="pickGrid"></div>
+    <div class="picker-foot">
+      <button class="btn btn-cancel" id="pickCancel">やめる</button>
+      <button class="btn btn-red" id="pickClear" style="background:var(--paper-2)">この席を空ける</button>
+      <button class="btn btn-gone" id="pickGone">机をなくす</button>
+    </div>
+  </div>
+</div>
+
+<!-- 名簿 -->
+<div class="modal hidden" id="roster">
+  <div class="modal-box roster-box">
+    <div class="roster-top">
+      <h2>名簿（出席番号の順）</h2>
+      <button class="btn btn-sm btn-blue" id="rosterClose" style="min-width:110px;font-size:17px">とじる</button>
+    </div>
+    <div class="roster-bar">
+      <div class="rcount">
+        <span class="label">人数</span>
+        <button class="btn btn-sm step" id="rowsMinus" aria-label="1人へらす">−</button>
+        <span class="rnum"><b id="rowsNum">24</b>人</span>
+        <button class="btn btn-sm step" id="rowsPlus" aria-label="1人ふやす">＋</button>
+      </div>
+      <div class="paste-tip">
+        <span><b>Excelから入れるとき</b>：名前のたて1列をコピーして、<b>1番のらん</b>に貼りつけ。下へ順に入り、人数も合わせます。</span>
+      </div>
+    </div>
+    <div class="paste-msg hidden" id="pasteMsg"></div>
+    <div class="roster-scroll">
+      <div class="roster-grid" id="rosterGrid"></div>
+      <div class="roster-tools">
+        <button class="btn btn-sm" id="pasteToggle">うまく貼りつけられないとき</button>
+      </div>
+      <div class="paste hidden" id="pasteBox">
+        <textarea id="pasteText" placeholder="ここに名前の列を貼りつけて、下のボタンを押してください。&#10;1行に1人ずつ、出席番号の順に。休みの番号は空の行にします。"></textarea>
+        <div class="roster-tools">
+          <button class="btn btn-sm btn-yellow" id="pasteApply">名簿に入れる（いまの名簿は置きかわります）</button>
+        </div>
+      </div>
+      <p class="note">名前はこのiPadの中だけに保存され、ほかへは送られません。</p>
+
+      <div class="sec">
+        <h3>メモのボタン</h3>
+        <label for="tagK">考え方（「、」かスペースで区切る）</label>
+        <input id="tagK">
+        <label for="tagG">グループ</label>
+        <input id="tagG">
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const KEY = 'shimei-jun:v2';
+  const OLD_KEY = 'shimei-jun:order';
+
+  const DEFAULT_TAGS = { k: ['A', 'B', 'C', 'D', 'E'], g: ['①', '②', '③', '④', '⑤', '⑥'] };
+  // まえの決まりのボタン（考え方A〜D・1班〜6班）を使っていたら、新しいほうへ置きかえる
+  const OLD_TAGS = { k: 'A,B,C,D', g: '1班,2班,3班,4班,5班,6班' };
+  const OLD_G = { '1班': '①', '2班': '②', '3班': '③', '4班': '④', '5班': '⑤', '6班': '⑥' };
+
+  const LIMIT = { cols: [1, 10], rows: [1, 8] };
+  const nSeats = () => S.lay.cols * S.lay.rows;
+  // まえの形（6列×4行・上の行から数えていた）の座席の番号を、いまの数え方にする
+  const fromOld = (j) => (3 - Math.floor(j / 6)) * 6 + (j % 6);
+
+  // ---- データ ----
+  // roster[n-1] = 出席番号 n の名前
+  // lay         = 座席の並び { cols, rows, pair: 2人ずつ, flip: 上下反対（教卓が上） }
+  // 座席の番号 i = 前（教卓がわ）から r 行目・左から c 列目 → i = r * cols + c
+  // seats[i]    = 座席 i の出席番号（なければ null）
+  // gone        = 机をおかない座席の番号の一覧
+  // order       = 当てる順 [{ seat, k: 考え方, g: グループ, t: メモ }]
+  let S = load();
+  let mode = S.seats.some(Boolean) ? 'select' : 'prep';
+  let cur = 0;          // 当てていく：次に当てる人が order の何番目か
+  let focus = -1;       // 順番を決める：メモを書いている人が order の何番目か
+  let pickSeat = -1;    // 出席番号をえらんでいる席
+  let lastNo = 0;       // さっきふった出席番号
+
+  function blank() {
+    return { roster: [], rows: 24, lay: { cols: 6, rows: 4, pair: false, flip: false }, seats: Array(24).fill(null), gone: [], order: [], tags: structuredCloneSafe(DEFAULT_TAGS) };
+  }
+  function structuredCloneSafe(o) { return JSON.parse(JSON.stringify(o)); }
+
+  function load() {
+    const d = blank();
+    try {
+      const v = JSON.parse(localStorage.getItem(KEY) || 'null');
+      if (v && typeof v === 'object') {
+        if (Array.isArray(v.roster)) d.roster = v.roster.map(x => typeof x === 'string' ? x : '');
+        if (Number.isInteger(v.rows)) d.rows = Math.max(1, Math.min(60, v.rows));
+        let lastNamed = 0;                       // 名前が入っている番号より少なくはしない
+        d.roster.forEach((x, k) => { if (x && x.trim()) lastNamed = k + 1; });
+        d.rows = Math.max(d.rows, Math.min(60, lastNamed));
+        d.roster = d.roster.slice(0, d.rows);
+        const isNew = v.lay && typeof v.lay === 'object';
+        if (isNew) {
+          const lim = (x, [a, b], dft) => Number.isInteger(x) ? Math.max(a, Math.min(b, x)) : dft;
+          d.lay = { cols: lim(v.lay.cols, LIMIT.cols, 6), rows: lim(v.lay.rows, LIMIT.rows, 4), pair: !!v.lay.pair, flip: !!v.lay.flip };
+        }
+        const N = d.lay.cols * d.lay.rows;
+        const conv = isNew ? (i) => i : fromOld;
+        d.seats = Array(N).fill(null);
+        if (Array.isArray(v.seats)) v.seats.forEach((x, j) => { if (Number.isInteger(x) && j < (isNew ? N : 24)) d.seats[conv(j)] = x; });
+        if (Array.isArray(v.gone)) d.gone = [...new Set(v.gone.filter(i => Number.isInteger(i) && i >= 0 && i < N))];
+        if (Array.isArray(v.order)) {
+          const seen = new Set();
+          d.order = v.order.filter(o => o && Number.isInteger(o.seat) && o.seat >= 0 && o.seat < (isNew ? N : 24))
+            .map(o => ({ ...o, seat: conv(o.seat) }))
+            .filter(o => !seen.has(o.seat) && seen.add(o.seat))
+            .map(o => ({ seat: o.seat, k: Array.isArray(o.k) ? o.k.filter(x => typeof x === 'string') : (o.k ? [String(o.k)] : []), g: o.g || null, t: typeof o.t === 'string' ? o.t : '' }));
+        }
+        if (v.tags && Array.isArray(v.tags.k) && Array.isArray(v.tags.g)) d.tags = { k: v.tags.k.map(String), g: v.tags.g.map(String) };
+        if (d.tags.k.join(',') === OLD_TAGS.k) d.tags.k = DEFAULT_TAGS.k.slice();
+        if (d.tags.g.join(',') === OLD_TAGS.g) {
+          d.tags.g = DEFAULT_TAGS.g.slice();
+          d.order.forEach(o => { if (OLD_G[o.g]) o.g = OLD_G[o.g]; });
+        }
+        return d;
+      }
+      // まえの形（順番だけ）から引きつぐ
+      const old = JSON.parse(localStorage.getItem(OLD_KEY) || 'null');
+      if (Array.isArray(old)) d.order = [...new Set(old)].filter(n => Number.isInteger(n) && n >= 0 && n < 24).map(j => ({ seat: fromOld(j), k: [], g: null, t: '' }));
+    } catch (e) {}
+    return d;
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
+  }
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  const nameOfNo = (no) => no ? (S.roster[no - 1] || '').trim() : '';
+  const nameOfSeat = (i) => nameOfNo(S.seats[i]);
+  function labelOfSeat(i) {
+    const no = S.seats[i];
+    const nm = nameOfNo(no);
+    if (nm) return nm;
+    if (no) return `${no}番`;
+    return '（番号なし）';
+  }
+  const isOn = (o, cat, v) => cat === 'k' ? o.k.includes(v) : o[cat] === v;
+  const orderPos = (i) => S.order.findIndex(o => o.seat === i);
+  // compact：机と一覧では考え方を1つにまとめる（例：ACE）
+  function tagChips(o, withMemo = true, compact = true) {
+    if (!o) return '';
+    let h = '';
+    if (compact && o.k.length > 1) h += `<span class="tg">${esc(o.k.every(v => [...v].length === 1) ? o.k.join('') : o.k.join('・'))}</span>`;
+    else o.k.forEach(v => { h += `<span class="tg">${esc(v)}</span>`; });
+    if (o.g) h += `<span class="tg g">${esc(o.g)}</span>`;
+    if (withMemo && o.t && o.t.trim()) h += `<span class="tg m">✎</span>`;
+    return h;
+  }
+
+  // ---- 座席 ----
+  let seatEls = [];
+  function buildSeats() {
+    const { cols, rows, pair, flip } = S.lay;
+    const gaps = pair ? Math.ceil(cols / 2) - 1 : 0;             // 2人ずつのときの通路の数
+    const ce = cols + gaps * 0.35;
+    const room = $('room');
+    room.style.setProperty('--ce', ce);
+    room.style.setProperty('--ar', (ce / (rows * 0.95 + 0.75)).toFixed(4));
+    $('board').classList.toggle('flip', flip);
+    $('flipBtn').classList.toggle('on', flip);
+
+    const tracks = [];
+    for (let c = 0; c < cols; c++) { tracks.push('1fr'); if (pair && c % 2 === 1 && c < cols - 1) tracks.push('.35fr'); }
+    const sEl = $('seats');
+    sEl.style.gridTemplateColumns = tracks.join(' ');
+    sEl.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+    sEl.innerHTML = '';
+    seatEls = [];
+    for (let i = 0; i < cols * rows; i++) {
+      const r = Math.floor(i / cols), c = i % cols;
+      const dr = flip ? r : rows - 1 - r;                            // 画面での行（上から）
+      const dc = flip ? cols - 1 - c : c;                            // 画面での列（左から）
+      const b = document.createElement('button');
+      b.className = 'seat';
+      b.style.gridRow = dr + 1;
+      b.style.gridColumn = (pair ? dc + Math.floor(dc / 2) : dc) + 1;
+      b.innerHTML = '<span class="desk"></span>';
+      b.addEventListener('click', () => onSeat(i));
+      sEl.appendChild(b);
+      seatEls.push(b);
+    }
+  }
+
+  // 並びを変える（はみ出す席に番号や順番があれば確かめる）
+  function setLayout(cols, rows) {
+    cols = Math.max(LIMIT.cols[0], Math.min(LIMIT.cols[1], cols));
+    rows = Math.max(LIMIT.rows[0], Math.min(LIMIT.rows[1], rows));
+    const oc = S.lay.cols;
+    const map = (i) => { const r = Math.floor(i / oc), c = i % oc; return r < rows && c < cols ? r * cols + c : -1; };
+    const lostNo = S.seats.map((no, i) => no && map(i) < 0 ? no : 0).filter(Boolean);
+    const lostOrder = S.order.filter(o => map(o.seat) < 0).length;
+    const apply = () => {
+      const seats = Array(cols * rows).fill(null);
+      S.seats.forEach((no, i) => { const j = map(i); if (j >= 0) seats[j] = no; });
+      S.seats = seats;
+      S.gone = S.gone.map(map).filter(j => j >= 0);
+      S.order = S.order.map(o => ({ ...o, seat: map(o.seat) })).filter(o => o.seat >= 0);
+      S.lay.cols = cols; S.lay.rows = rows;
+      cur = 0; focus = -1;
+      save();
+      buildSeats();
+      render();
+    };
+    if (lostNo.length || lostOrder) {
+      const parts = [];
+      if (lostNo.length) parts.push(`出席番号 ${lostNo.sort((a, b) => a - b).join('・')}`);
+      if (lostOrder) parts.push(`当てる順 ${lostOrder}人ぶん`);
+      ask(`はみ出す席の<br>${parts.join('<br>')}<br>が消えます。いいですか？`, apply);
+    } else apply();
+  }
+  $('colsMinus').addEventListener('click', () => setLayout(S.lay.cols - 1, S.lay.rows));
+  $('colsPlus').addEventListener('click', () => setLayout(S.lay.cols + 1, S.lay.rows));
+  $('rowsLMinus').addEventListener('click', () => setLayout(S.lay.cols, S.lay.rows - 1));
+  $('rowsLPlus').addEventListener('click', () => setLayout(S.lay.cols, S.lay.rows + 1));
+  $('pairBtn').addEventListener('click', () => { S.lay.pair = !S.lay.pair; save(); buildSeats(); render(); });
+  $('flipBtn').addEventListener('click', () => { S.lay.flip = !S.lay.flip; save(); buildSeats(); render(); });
+
+  function onSeat(i) {
+    if (mode === 'prep') {
+      if (S.gone.includes(i)) { S.gone = S.gone.filter(x => x !== i); save(); render(); return; }   // 机をもどす
+      openPicker(i);
+      return;
+    }
+    if (mode !== 'select') return;
+    if (S.gone.includes(i)) return;
+    const p = orderPos(i);
+    if (p >= 0) {
+      focus = p;                    // 選んである席 → その人のメモを開く
+    } else {
+      S.order.push({ seat: i, k: [], g: null, t: '' });
+      focus = S.order.length - 1;
+      save();
+    }
+    renderSeats(); renderList(); renderEditor();
+  }
+
+  function renderSeats() {
+    $('room').classList.toggle('no-tap', mode === 'check');
+    $('room').classList.toggle('prep-mode', mode === 'prep');
+    seatEls.forEach((el, i) => {
+      if (S.gone.includes(i)) {
+        el.className = 'seat gone';
+        el.firstChild.innerHTML = mode === 'prep' ? '<span class="gone-tx">机なし<br>（タップでもどす）</span>' : '';
+        return;
+      }
+      const no = S.seats[i];
+      const nm = nameOfSeat(i);
+      const nmH = nm ? `<span class="nm">${esc(nm)}</span>` : '';
+      const p = orderPos(i);
+      const o = S.order[p];
+      let cls = 'seat';
+      let h = '';
+      if (mode === 'prep') {
+        if (no) { h = `<span class="pno">${no}</span>${nmH}`; }
+        else { cls += ' blank'; h = '<span class="plus">＋</span>'; }
+      } else if (mode === 'select') {
+        if (p >= 0) {
+          cls += ' picked' + (p === focus ? ' focus' : '');
+          h = `<span class="num">${p + 1}</span>${nmH}<span class="tags">${tagChips(o)}</span>`;
+        } else {
+          cls += ' plain';
+          h = nmH;
+        }
+      } else {
+        if (p < 0) { cls += ' off'; h = nmH; }
+        else if (p < cur) { cls += ' done'; h = `<span class="tiny">${p + 1}</span>${nmH}<span class="stamp">済</span>`; }
+        else {
+          cls += p === cur ? ' now' : ' wait';
+          h = `<span class="tiny">${p + 1}</span>${nmH}<span class="tags">${tagChips(o)}</span>`;
+        }
+      }
+      el.className = cls;
+      el.firstChild.innerHTML = h;
+    });
+  }
+
+  // ---- 2 順番を決める ----
+  function renderList() {
+    $('pickedCount').textContent = S.order.length;
+    $('resetBtn').disabled = S.order.length === 0;
+    if (!S.order.length) {
+      $('orderList').innerHTML = '<div class="empty-list">当てたい順に座席をタップしてください。</div>';
+      return;
+    }
+    $('orderList').innerHTML = S.order.map((o, k) =>
+      `<button class="row ${k === focus ? 'on' : ''}" data-k="${k}"><span class="rn">${k + 1}</span><span class="rname">${esc(labelOfSeat(o.seat))}</span>${tagChips(o)}</button>`
+    ).join('');
+    const on = $('orderList').querySelector('.row.on');
+    if (on) on.scrollIntoView({ block: 'nearest' });
+  }
+  $('orderList').addEventListener('click', (e) => {
+    const r = e.target.closest('.row');
+    if (!r) return;
+    focus = +r.dataset.k;
+    renderSeats(); renderList(); renderEditor();
+  });
+
+  function renderEditor() {
+    const ed = $('editor');
+    const o = S.order[focus];
+    if (!o) {
+      ed.innerHTML = `<div class="label">メモ</div><p class="hint"><b>当てたい順</b>に座席をタップ。<br>選んだ人に、考え方・グループ・メモをつけられます。</p>`;
+      return;
+    }
+    const chips = (cat) => S.tags[cat].map(t => `<button class="chip ${isOn(o, cat, t) ? 'on' : ''}" data-cat="${cat}" data-v="${esc(t)}">${esc(t)}</button>`).join('');
+    ed.innerHTML = `
+      <div class="p-head"><span class="badge">${focus + 1}</span><span class="p-name" style="font-size:21px">${esc(labelOfSeat(o.seat))}</span></div>
+      <div class="label">考え方（いくつでも）</div>
+      <div class="chips k" ${S.tags.k.length === 5 ? '' : 'style="grid-template-columns:repeat(auto-fill,minmax(46px,1fr))"'}>${chips('k')}</div>
+      <div class="label">グループ</div>
+      <div class="chips g" ${S.tags.g.length === 6 ? '' : 'style="grid-template-columns:repeat(auto-fill,minmax(46px,1fr))"'}>${chips('g')}</div>
+      <input class="memo-in" id="memoIn" placeholder="メモ（例：図でとけた）" value="${esc(o.t)}" enterkeyhint="done">
+      <button class="btn btn-sm btn-red btn-wide" id="removeBtn" style="margin-top:4px">順番から外す</button>`;
+  }
+  $('editor').addEventListener('click', (e) => {
+    const o = S.order[focus];
+    if (!o) return;
+    const c = e.target.closest('.chip');
+    if (c) {
+      const cat = c.dataset.cat, v = c.dataset.v;
+      if (cat === 'k') {                 // 考え方はいくつでも選べる
+        const idx = (x) => { const n = S.tags.k.indexOf(x); return n < 0 ? 99 : n; };
+        o.k = o.k.includes(v) ? o.k.filter(x => x !== v) : [...o.k, v].sort((a, b) => idx(a) - idx(b));
+      } else {
+        o[cat] = o[cat] === v ? null : v;
+      }
+      save();
+      e.currentTarget.querySelectorAll(`.chip[data-cat="${cat}"]`).forEach(b => b.classList.toggle('on', isOn(o, cat, b.dataset.v)));
+      renderSeats(); renderList();
+      return;
+    }
+    if (e.target.closest('#removeBtn')) {
+      S.order.splice(focus, 1);     // 外す → 後ろの番号が詰まる
+      focus = Math.min(focus, S.order.length - 1);
+      save();
+      renderSeats(); renderList(); renderEditor();
+    }
+  });
+  $('editor').addEventListener('input', (e) => {
+    if (e.target.id !== 'memoIn') return;
+    const o = S.order[focus];
+    if (!o) return;
+    o.t = e.target.value;
+    save();
+    renderSeats(); renderList();
+  });
+  $('editor').addEventListener('keydown', (e) => {
+    if (e.target.id === 'memoIn' && e.key === 'Enter') e.target.blur();
+  });
+
+  // ---- 3 当てていく ----
+  function renderCheck() {
+    const total = S.order.length;
+    const empty = total === 0;
+    const finished = !empty && cur >= total;
+    $('emptyCard').classList.toggle('hidden', !empty);
+    $('progressCard').classList.toggle('hidden', empty || finished);
+    $('personCard').classList.toggle('hidden', empty || finished);
+    $('owariCard').classList.toggle('hidden', !finished);
+    $('nextBtn').classList.toggle('hidden', finished);
+    $('againBtn').classList.toggle('hidden', !finished);
+    $('nextBtn').disabled = empty;
+    $('backBtn').disabled = cur === 0;
+    $('nowNum').textContent = Math.min(cur + 1, total);
+    $('totalNum').textContent = total;
+    $('dots').innerHTML = S.order.map((_, k) => `<i class="${k < cur ? 'd' : k === cur ? 'n' : ''}"></i>`).join('');
+
+    const o = S.order[cur];
+    if (o) {
+      const nx = S.order[cur + 1];
+      const tags = tagChips(o, false, false);
+      $('personCard').innerHTML = `
+        <div class="p-head"><span class="badge">${cur + 1}</span><span class="p-name">${esc(labelOfSeat(o.seat))}</span></div>
+        ${tags ? `<div class="p-tags">${tags}</div>` : ''}
+        ${o.t && o.t.trim() ? `<div class="p-memo">${esc(o.t)}</div>` : ''}
+        <div class="p-next">${nx ? `つぎ → <b>${esc(labelOfSeat(nx.seat))}</b>` : 'この人で最後'}</div>`;
+    }
+  }
+  $('nextBtn').addEventListener('click', () => { if (cur < S.order.length) { cur++; render(); } });
+  $('backBtn').addEventListener('click', () => { if (cur > 0) { cur--; render(); } });
+  $('againBtn').addEventListener('click', () => { cur = 0; render(); });
+
+  // ---- 1 じゅんび ----
+  function renderPrep() {
+    $('colsNum').textContent = S.lay.cols;
+    $('rowsLNum').textContent = S.lay.rows;
+    $('colsMinus').disabled = S.lay.cols <= LIMIT.cols[0];
+    $('colsPlus').disabled = S.lay.cols >= LIMIT.cols[1];
+    $('rowsLMinus').disabled = S.lay.rows <= LIMIT.rows[0];
+    $('rowsLPlus').disabled = S.lay.rows >= LIMIT.rows[1];
+    $('pairBtn').classList.toggle('on', S.lay.pair);
+    $('pairBtn').querySelector('.box').textContent = S.lay.pair ? '✓' : '';
+    $('rosterCount').textContent = S.roster.filter(x => x && x.trim()).length;
+    const n = S.seats.filter(Boolean).length;
+    $('seatCount').textContent = n;
+    $('clearSeatsBtn').disabled = n === 0;
+  }
+
+  // 出席番号えらび
+  function openPicker(i) {
+    pickSeat = i;
+    const max = S.rows;
+    const usedAt = {};
+    S.seats.forEach((no, s) => { if (no) usedAt[no] = s; });
+
+    // おすすめ：さっきの番号の次で、まだ使っていない番号
+    let sug = 0;
+    for (let n = lastNo + 1; n <= max; n++) if (usedAt[n] === undefined) { sug = n; break; }
+    if (!sug) for (let n = 1; n <= max; n++) if (usedAt[n] === undefined) { sug = n; break; }
+    const sb = $('suggestBtn');
+    if (sug && S.seats[i] !== sug) {
+      sb.classList.remove('hidden');
+      sb.dataset.no = sug;
+      sb.innerHTML = `<span class="sno">${sug}</span><span>番 ${esc(nameOfNo(sug))}</span><span>をこの席に</span>`;
+    } else sb.classList.add('hidden');
+
+    let h = '';
+    for (let n = 1; n <= max; n++) {
+      const here = S.seats[i] === n;
+      const used = !here && usedAt[n] !== undefined;
+      h += `<button class="pk ${here ? 'here' : used ? 'used' : ''}" data-no="${n}"><span class="pkn">${n}</span><span class="pkm">${esc(nameOfNo(n)) || '&nbsp;'}</span></button>`;
+    }
+    $('pickGrid').innerHTML = h;
+    $('pickClear').disabled = !S.seats[i];
+    $('picker').classList.remove('hidden');
+  }
+  function assign(no) {
+    S.seats = S.seats.map(x => x === no ? null : x);   // ほかの席にあれば外す
+    S.seats[pickSeat] = no;
+    lastNo = no;
+    save();
+    closePicker();
+  }
+  function closePicker() { $('picker').classList.add('hidden'); render(); }
+  $('pickGrid').addEventListener('click', (e) => { const b = e.target.closest('.pk'); if (b) assign(+b.dataset.no); });
+  $('suggestBtn').addEventListener('click', (e) => assign(+e.currentTarget.dataset.no));
+  $('pickCancel').addEventListener('click', closePicker);
+  $('pickClear').addEventListener('click', () => { S.seats[pickSeat] = null; save(); closePicker(); });
+  $('pickGone').addEventListener('click', () => {
+    S.seats[pickSeat] = null;
+    S.order = S.order.filter(o => o.seat !== pickSeat);
+    if (!S.gone.includes(pickSeat)) S.gone.push(pickSeat);
+    save();
+    closePicker();
+  });
+
+  // 名簿
+  function buildRoster() {
+    const rows = S.rows;
+    $('rowsNum').textContent = rows;
+    $('rowsMinus').disabled = rows <= 1;
+    $('rowsPlus').disabled = rows >= 60;
+    let h = '';
+    for (let n = 1; n <= rows; n++) {
+      h += `<div class="rrow"><span class="rno">${n}</span><input data-n="${n}" value="${esc(S.roster[n - 1] || '')}" placeholder="名前" enterkeyhint="next" autocomplete="off"></div>`;
+    }
+    $('rosterGrid').innerHTML = h;
+    $('tagK').value = S.tags.k.join('、');
+    $('tagG').value = S.tags.g.join('、');
+  }
+  $('rosterBtn').addEventListener('click', () => { buildRoster(); $('pasteBox').classList.add('hidden'); $('pasteMsg').classList.add('hidden'); $('roster').classList.remove('hidden'); });
+  $('rosterClose').addEventListener('click', () => { document.activeElement && document.activeElement.blur(); $('roster').classList.add('hidden'); render(); });
+  $('rosterGrid').addEventListener('input', (e) => {
+    const n = +e.target.dataset.n;
+    if (!n) return;
+    while (S.roster.length < n) S.roster.push('');
+    S.roster[n - 1] = e.target.value;
+    save();
+  });
+  $('rosterGrid').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || !e.target.dataset.n) return;
+    e.preventDefault();
+    const nx = $('rosterGrid').querySelector(`input[data-n="${+e.target.dataset.n + 1}"]`);
+    if (nx) nx.focus(); else e.target.blur();
+  });
+  // 人数を変える（へらすときに名前が消えるなら確かめる）
+  function setRows(n) {
+    n = Math.max(1, Math.min(60, n));
+    const apply = () => {
+      S.rows = n;
+      S.roster = S.roster.slice(0, n);
+      S.seats = S.seats.map(x => x && x > n ? null : x);   // 名簿にない番号は席から外す
+      save();
+      buildRoster();
+    };
+    const lost = S.roster.slice(n).map((x, k) => [n + k + 1, (x || '').trim()]).filter(([, x]) => x);
+    if (lost.length) {
+      ask(`${lost.map(([no, x]) => `${no}番 ${esc(x)}`).join('、')}<br>の名前を消しますか？`, apply);
+    } else apply();
+  }
+  $('rowsMinus').addEventListener('click', () => setRows(S.rows - 1));
+  $('rowsPlus').addEventListener('click', () => setRows(S.rows + 1));
+
+  // 貼りつけた文字を名前の列にする
+  function parseNames(text) {
+    return text.replace(/\r\n?/g, '\n').replace(/\n+$/, '').split('\n')
+      .map(l => l.split('\t').filter(c => c.trim() && !/^\s*\d+\s*$/.test(c))[0] || '')   // 表の「番号｜名前」は名前だけ
+      .map(l => l.replace(/^\s*\d+[\s.．、,:：)）]+/, '').replace(/^"|"$/g, '').trim());   // 「1 山田」「1. 山田」の番号は外す
+  }
+  function putNames(names, from) {
+    if (from === 1) {
+      S.roster = names.slice(0, 60);
+      S.rows = Math.max(1, Math.min(60, names.length));    // 1番から貼ったら人数も合わせる
+    } else {
+      while (S.roster.length < from - 1) S.roster.push('');
+      names.forEach((x, k) => { if (from - 1 + k < 60) S.roster[from - 1 + k] = x; });
+      S.rows = Math.max(S.rows, Math.min(60, from - 1 + names.length));
+    }
+    S.seats = S.seats.map(x => x && x > S.rows ? null : x);
+    save();
+    buildRoster();
+    const m = $('pasteMsg');
+    m.textContent = from === 1
+      ? `${names.length}人ぶん入れました（人数を ${S.rows}人 にしました）`
+      : `${from}番から ${names.length}人ぶん入れました`;
+    m.classList.remove('hidden');
+  }
+  $('rosterGrid').addEventListener('paste', (e) => {
+    const n = +e.target.dataset.n;
+    if (!n) return;
+    const cd = e.clipboardData || window.clipboardData;
+    const text = cd ? cd.getData('text') : '';
+    if (!/[\r\n\t]/.test(text.replace(/[\r\n]+$/, ''))) return;     // 1人ぶんならふつうに貼る
+    e.preventDefault();
+    e.target.blur();
+    putNames(parseNames(text), n);
+  });
+  $('pasteToggle').addEventListener('click', () => {
+    $('pasteText').value = S.roster.join('\n').replace(/\n+$/, '');
+    $('pasteBox').classList.toggle('hidden');
+  });
+  $('pasteApply').addEventListener('click', () => {
+    const names = parseNames($('pasteText').value);
+    if (!names.some(Boolean)) return;
+    putNames(names, 1);
+    $('pasteBox').classList.add('hidden');
+  });
+  const splitTags = (s) => [...new Set(s.split(/[、,，\s]+/).map(x => x.trim()).filter(Boolean))].slice(0, 12);
+  $('tagK').addEventListener('change', (e) => { const v = splitTags(e.target.value); S.tags.k = v.length ? v : DEFAULT_TAGS.k.slice(); e.target.value = S.tags.k.join('、'); save(); });
+  $('tagG').addEventListener('change', (e) => { const v = splitTags(e.target.value); S.tags.g = v.length ? v : DEFAULT_TAGS.g.slice(); e.target.value = S.tags.g.join('、'); save(); });
+
+  // ---- 確認ダイアログ ----
+  let onOk = null;
+  function ask(msg, fn) { $('confirmMsg').innerHTML = msg; onOk = fn; $('confirm').classList.remove('hidden'); }
+  $('cancelBtn').addEventListener('click', () => $('confirm').classList.add('hidden'));
+  $('okBtn').addEventListener('click', () => { $('confirm').classList.add('hidden'); if (onOk) onOk(); onOk = null; });
+
+  $('resetBtn').addEventListener('click', () => ask('決めた順番とメモを<br>全部消しますか？', () => {
+    S.order = []; focus = -1; save(); render();
+  }));
+  $('clearSeatsBtn').addEventListener('click', () => ask('席にふった出席番号を<br>全部外しますか？<br><span style="font-size:15px;color:var(--ink-soft)">（名簿の名前は残ります）</span>', () => {
+    S.seats = Array(nSeats()).fill(null); lastNo = 0; save(); render();
+  }));
+
+  // ---- モード ----
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+    mode = t.dataset.mode;
+    cur = 0;                                   // 切り替えたら1番目から
+    if (mode === 'select') focus = -1;
+    render();
+  }));
+
+  function render() {
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.mode === mode));
+    $('panelPrep').classList.toggle('hidden', mode !== 'prep');
+    $('panelSelect').classList.toggle('hidden', mode !== 'select');
+    $('panelCheck').classList.toggle('hidden', mode !== 'check');
+    $('room').querySelector('.room-tag').textContent =
+      mode === 'prep' ? 'ざせき表 ─ 席をタップして番号をふる' : mode === 'select' ? 'ざせき表 ─ 当てたい順にタップ' : 'ざせき表';
+    renderSeats();
+    if (mode === 'prep') renderPrep();
+    if (mode === 'select') { renderList(); renderEditor(); }
+    if (mode === 'check') renderCheck();
+  }
+
+  buildSeats();
+  render();
+})();
+</script>
+</body>
+</html>
