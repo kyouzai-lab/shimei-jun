@@ -88,6 +88,58 @@
     white-space: nowrap;
     text-shadow: 3px 2px 0 var(--pink);
   }
+  .hd-right { display: flex; align-items: center; gap: 10px; }
+  .hd-btn {
+    border: 3px solid var(--ink);
+    border-radius: 12px;
+    min-height: 54px;
+    padding: 0 14px;
+    font-size: 16px;
+    font-weight: 900;
+    background: var(--paper-2);
+    box-shadow: 0 4px 0 var(--ink);
+    transform: translateY(-2px);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .hd-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+
+  /* ---------- 合言葉 ---------- */
+  .lock {
+    position: fixed; inset: 0;
+    display: grid; place-items: center;
+    padding: 20px;
+    z-index: 50;
+    background: var(--paper);
+    overflow: auto;
+  }
+  .lock-box {
+    width: min(460px, 100%);
+    background: var(--paper-2);
+    border: 3px solid var(--ink);
+    border-radius: 18px;
+    box-shadow: 8px 8px 0 var(--pink);
+    padding: 30px 28px 24px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .lock-box h1 { text-align: center; margin: 0 0 6px; }
+  .lock-box .label { margin-top: 4px; }
+  .lock-box .btn { margin-bottom: 0; }
+  .pw {
+    width: 100%;
+    min-height: 54px;
+    border: 3px solid var(--ink);
+    border-radius: 12px;
+    background: #fff;
+    padding: 8px 14px;
+    font-size: 20px;
+    font-weight: 700;
+  }
+  .pw:focus { outline: 4px solid var(--blue-soft, #bcd6f0); }
+  .msg { min-height: 1.5em; font-size: 15px; color: #d6337f; margin: 0; font-weight: 900; }
+  .btn-big { min-height: 64px; font-size: 21px; }
+  .linkbtn { border: 0; background: none; color: var(--ink-soft); font-size: 14px; font-weight: 700; text-decoration: underline; cursor: pointer; padding: 6px; align-self: center; }
+
   .sub {
     font-family: var(--f-dot);
     font-size: 15px;
@@ -896,16 +948,24 @@
 </style>
 </head>
 <body>
-<div class="app">
+<!-- 合言葉 -->
+<div class="lock" id="lock">
+  <div class="lock-box" id="lockBox"></div>
+</div>
+
+<div class="app hidden" id="app">
   <header>
     <div class="brand">
       <h1>あてる順</h1>
       <span class="sub">せきの じゅんばん</span>
     </div>
-    <div class="tabs" role="tablist">
-      <button class="tab" data-mode="prep" role="tab"><span class="no">1</span>じゅんび</button>
-      <button class="tab" data-mode="select" role="tab"><span class="no">2</span>順番を決める</button>
-      <button class="tab" data-mode="check" role="tab"><span class="no">3</span>当てていく</button>
+    <div class="hd-right">
+      <div class="tabs" role="tablist">
+        <button class="tab" data-mode="prep" role="tab"><span class="no">1</span>じゅんび</button>
+        <button class="tab" data-mode="select" role="tab"><span class="no">2</span>順番を決める</button>
+        <button class="tab" data-mode="check" role="tab"><span class="no">3</span>当てていく</button>
+      </div>
+      <button class="hd-btn" id="lockBtn" title="ロックする">ロック</button>
     </div>
   </header>
 
@@ -1048,7 +1108,7 @@
           <button class="btn btn-sm btn-yellow" id="pasteApply">名簿に入れる（いまの名簿は置きかわります）</button>
         </div>
       </div>
-      <p class="note">名前はこのiPadの中だけに保存され、ほかへは送られません。</p>
+      <p class="note">名前は合言葉で暗号化して、このiPadの中だけに保存します。ほかへは送りません。</p>
 
       <div class="sec">
         <h3>メモのボタン</h3>
@@ -1063,8 +1123,13 @@
 
 <script>
 (() => {
-  const KEY = 'shimei-jun:v2';
-  const OLD_KEY = 'shimei-jun:order';
+  // 保存は合言葉で暗号化（PBKDF2 SHA-256 25万回 → AES-GCM 256bit）。合言葉は保存しない
+  const KEY = 'shimei-jun:v3';            // { v, salt, iv, ct }
+  const FAIL = 'shimei-jun:fail';         // まちがえた回数と待ち時間
+  const ITER = 250000;
+  const MIN_PW = 6;
+  const PLAIN_KEY = 'shimei-jun:v2';      // まえの版（平文）。引きついだら消す
+  const OLD_KEY = 'shimei-jun:order';     // もっとまえの版（平文）
 
   const DEFAULT_TAGS = { k: ['A', 'B', 'C', 'D', 'E'], g: ['①', '②', '③', '④', '⑤', '⑥'] };
   // まえの決まりのボタン（考え方A〜D・1班〜6班）を使っていたら、新しいほうへ置きかえる
@@ -1083,8 +1148,8 @@
   // seats[i]    = 座席 i の出席番号（なければ null）
   // gone        = 机をおかない座席の番号の一覧
   // order       = 当てる順 [{ seat, k: 考え方, g: グループ, t: メモ }]
-  let S = load();
-  let mode = S.seats.some(Boolean) ? 'select' : 'prep';
+  let S = blank();       // データ（開いているあいだだけメモリに置く）
+  let mode = 'prep';
   let cur = 0;          // 当てていく：次に当てる人が order の何番目か
   let focus = -1;       // 順番を決める：メモを書いている人が order の何番目か
   let pickSeat = -1;    // 出席番号をえらんでいる席
@@ -1095,10 +1160,10 @@
   }
   function structuredCloneSafe(o) { return JSON.parse(JSON.stringify(o)); }
 
-  function load() {
+  // 保存してあった中身を、いまの形にととのえる（v＝データ、old＝もっとまえの版の順番だけの配列）
+  function normalize(v, old) {
     const d = blank();
     try {
-      const v = JSON.parse(localStorage.getItem(KEY) || 'null');
       if (v && typeof v === 'object') {
         if (Array.isArray(v.roster)) d.roster = v.roster.map(x => typeof x === 'string' ? x : '');
         if (Number.isInteger(v.rows)) d.rows = Math.max(1, Math.min(60, v.rows));
@@ -1132,14 +1197,50 @@
         return d;
       }
       // まえの形（順番だけ）から引きつぐ
-      const old = JSON.parse(localStorage.getItem(OLD_KEY) || 'null');
       if (Array.isArray(old)) d.order = [...new Set(old)].filter(n => Number.isInteger(n) && n >= 0 && n < 24).map(j => ({ seat: fromOld(j), k: [], g: null, t: '' }));
     } catch (e) {}
     return d;
   }
-  function save() {
-    try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
+  // ---- 暗号 ----
+  const te = new TextEncoder(), td = new TextDecoder();
+  const b64 = (u8) => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); };
+  const unb64 = (s) => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  const rnd = (n) => crypto.getRandomValues(new Uint8Array(n));
+  async function deriveKey(pass, salt) {
+    const base = await crypto.subtle.importKey('raw', te.encode(pass), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: ITER, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
   }
+  let CK = null;        // 暗号のかぎ（メモリの中だけ）
+  let SALT = null;
+  function readRec() {
+    try { const v = JSON.parse(localStorage.getItem(KEY) || 'null'); return v && v.salt && v.iv && v.ct ? v : null; } catch (e) { return null; }
+  }
+  // まえの版の平文データ（あれば）
+  function readPlain() {
+    let v = null, old = null;
+    try { v = JSON.parse(localStorage.getItem(PLAIN_KEY) || 'null'); } catch (e) {}
+    try { old = JSON.parse(localStorage.getItem(OLD_KEY) || 'null'); } catch (e) {}
+    const has = (v && typeof v === 'object') || Array.isArray(old);
+    return has ? normalize(v, old) : null;
+  }
+  function dropPlain() { try { localStorage.removeItem(PLAIN_KEY); localStorage.removeItem(OLD_KEY); } catch (e) {} }
+
+  let saveTimer = null, saving = Promise.resolve(), saveOK = true;
+  function save() { clearTimeout(saveTimer); saveTimer = setTimeout(flush, 250); }
+  function flush() {
+    clearTimeout(saveTimer);
+    if (!CK) return saving;
+    const key = CK, salt = SALT, data = JSON.stringify(S);
+    saving = saving.then(async () => {
+      const iv = rnd(12);
+      const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, te.encode(data)));
+      try { localStorage.setItem(KEY, JSON.stringify({ v: 1, salt: b64(salt), iv: b64(iv), ct: b64(ct) })); saveOK = true; }
+      catch (e) { saveOK = false; }
+    }).catch(() => { saveOK = false; });
+    return saving;
+  }
+  document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
+  window.addEventListener('pagehide', () => flush());
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -1560,9 +1661,15 @@
 
   // ---- 確認ダイアログ ----
   let onOk = null;
-  function ask(msg, fn) { $('confirmMsg').innerHTML = msg; onOk = fn; $('confirm').classList.remove('hidden'); }
-  $('cancelBtn').addEventListener('click', () => $('confirm').classList.add('hidden'));
-  $('okBtn').addEventListener('click', () => { $('confirm').classList.add('hidden'); if (onOk) onOk(); onOk = null; });
+  function ask(msg, fn, okLabel = '消す', okCls = 'btn-danger') {
+    $('confirmMsg').innerHTML = msg;
+    $('okBtn').textContent = okLabel;
+    $('okBtn').className = 'btn ' + okCls;
+    onOk = fn;
+    $('confirm').classList.remove('hidden');
+  }
+  $('cancelBtn').addEventListener('click', () => { onOk = null; $('confirm').classList.add('hidden'); });
+  $('okBtn').addEventListener('click', () => { const f = onOk; onOk = null; $('confirm').classList.add('hidden'); if (f) f(); });
 
   $('resetBtn').addEventListener('click', () => ask('決めた順番とメモを<br>全部消しますか？', () => {
     S.order = []; focus = -1; save(); render();
@@ -1573,6 +1680,10 @@
 
   // ---- モード ----
   document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+    if (mode === 'check' && t.dataset.mode !== 'check') {
+      // 当てていく画面（子どもに見せる画面）から先生の画面へは合言葉が必要
+      return ask('先生の画面にもどりますか？<br><span style="font-size:15px;color:var(--ink-soft)">合言葉を入れるともどります。</span>', () => { mode = t.dataset.mode; cur = 0; focus = -1; lock(); }, 'もどる', 'btn-blue');
+    }
     mode = t.dataset.mode;
     cur = 0;                                   // 切り替えたら1番目から
     if (mode === 'select') focus = -1;
@@ -1592,8 +1703,122 @@
     if (mode === 'check') renderCheck();
   }
 
-  buildSeats();
-  render();
+  // ================= ロック・合言葉 =================
+  $('lockBtn').addEventListener('click', () => lock());
+  async function lock() {
+    await flush();
+    CK = null; SALT = null;
+    S = blank();                             // 画面に残った名前やメモを消す
+    pickSeat = -1; lastNo = 0;
+    ['confirm', 'picker', 'roster'].forEach(id => $(id).classList.add('hidden'));
+    $('pasteBox').classList.add('hidden');
+    $('pasteBox').querySelector('textarea').value = '';
+    $('rosterGrid').innerHTML = '';
+    $('tagK').value = ''; $('tagG').value = '';
+    const keep = mode;
+    buildSeats(); render();
+    mode = keep;
+    $('app').classList.add('hidden');
+    showLock();
+  }
+  function showApp(first) {
+    if (first) mode = S.seats.some(Boolean) ? 'select' : 'prep';
+    $('lock').classList.add('hidden');
+    $('lockBox').innerHTML = '';
+    $('app').classList.remove('hidden');
+    buildSeats();
+    render();
+  }
+  function failState() { try { return JSON.parse(localStorage.getItem(FAIL) || 'null') || { n: 0, until: 0 }; } catch (e) { return { n: 0, until: 0 }; } }
+  let opened = false;
+  function showLock(msg = '') {
+    $('lock').classList.remove('hidden');
+    const rec = readRec();
+    const box = $('lockBox');
+    if (!rec) {
+      const plain = readPlain();
+      box.innerHTML = `<h1>あてる順</h1>
+        <p class="hint">はじめに<b>合言葉</b>を決めます。名簿・席・当てる順・メモは、この合言葉で暗号化（読めない形に）して、この iPad の中だけに保存します。</p>
+        ${plain ? '<p class="hint">前に入れた名簿や順番は、この合言葉で暗号化して<b>そのまま引きつぎます</b>。</p>' : ''}
+        <span class="label">合言葉（${MIN_PW}文字以上）</span><input class="pw" id="pw1" type="password" autocomplete="new-password" enterkeyhint="next">
+        <span class="label">もう一度</span><input class="pw" id="pw2" type="password" autocomplete="new-password" enterkeyhint="done">
+        <p class="msg" id="lmsg">${esc(msg)}</p>
+        <button class="btn btn-blue btn-big" id="mkBtn">決めて始める</button>
+        <p class="hint" style="font-size:13px">合言葉を忘れると、だれにも開けられません（そのかわり安全です）。忘れたときは全部消して最初からになります。</p>`;
+      const go = async () => {
+        const a = $('pw1').value, b = $('pw2').value;
+        if (a.length < MIN_PW) return ($('lmsg').textContent = `${MIN_PW}文字以上にしてください`);
+        if (a !== b) return ($('lmsg').textContent = '2つの合言葉がちがいます');
+        $('mkBtn').disabled = true; $('mkBtn').textContent = 'じゅんびしています…';
+        try {
+          SALT = rnd(16); CK = await deriveKey(a, SALT);
+          S = readPlain() || blank();
+          await flush();
+          if (!saveOK || !readRec()) throw new Error('save');
+          dropPlain();                          // 暗号化して保存できたら、平文のほうは消す
+          opened = true;
+          showApp(true);
+        } catch (e) {
+          CK = null; SALT = null; S = blank();
+          $('mkBtn').disabled = false; $('mkBtn').textContent = '決めて始める';
+          $('lmsg').textContent = e && e.message === 'save' ? '保存できませんでした（iPad の空きを確認してください）' : 'この画面では使えません（https で開いてください）';
+        }
+      };
+      $('mkBtn').onclick = go;
+      $('pw2').onkeydown = (e) => { if (e.key === 'Enter') go(); };
+      $('pw1').onkeydown = (e) => { if (e.key === 'Enter') $('pw2').focus(); };
+      setTimeout(() => $('pw1').focus(), 50);
+      return;
+    }
+    box.innerHTML = `<h1>あてる順</h1>
+      <span class="label">合言葉</span><input class="pw" id="pw" type="password" autocomplete="current-password" enterkeyhint="go">
+      <p class="msg" id="lmsg">${esc(msg)}</p>
+      <button class="btn btn-blue btn-big" id="openBtn">ひらく</button>
+      <button class="linkbtn" id="forgot">合言葉を忘れたとき</button>`;
+    const go = async () => {
+      const fs = failState();
+      const wait = Math.ceil((fs.until - Date.now()) / 1000);
+      if (wait > 0) return ($('lmsg').textContent = `${wait}秒まってから入れてください`);
+      const pw = $('pw').value; if (!pw) return;
+      $('openBtn').disabled = true; $('openBtn').textContent = 'ひらいています…';
+      try {
+        const salt = unb64(rec.salt);
+        const key = await deriveKey(pw, salt);
+        const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(rec.iv) }, key, unb64(rec.ct));
+        let v; try { v = JSON.parse(td.decode(pt)); } catch (e) { throw new Error('broken'); }
+        try { localStorage.removeItem(FAIL); } catch (e) {}
+        SALT = salt; CK = key; S = normalize(v);
+        dropPlain();                            // 平文が残っていたら消す
+        const first = !opened; opened = true;
+        showApp(first);
+      } catch (e) {
+        if (e && e.message === 'broken') { $('lmsg').textContent = 'データを開けませんでした。「合言葉を忘れたとき」から最初にもどせます。'; }
+        else {
+          const f = failState(); f.n = (f.n || 0) + 1;
+          if (f.n >= 5) { f.n = 0; f.until = Date.now() + 30000; }
+          try { localStorage.setItem(FAIL, JSON.stringify(f)); } catch (x) {}
+          $('lmsg').textContent = f.until > Date.now() ? '5回まちがえました。30秒まってください' : '合言葉がちがいます';
+        }
+        $('openBtn').disabled = false; $('openBtn').textContent = 'ひらく';
+        $('pw').select();
+      }
+    };
+    $('openBtn').onclick = go;
+    $('pw').onkeydown = (e) => { if (e.key === 'Enter') go(); };
+    $('forgot').onclick = () => ask('全部消して最初からにしますか？<br><span style="font-size:15px;color:var(--ink-soft)">合言葉がわからないと、保存してある名簿・席・当てる順・メモは開けません。全部消して、新しい合言葉から始めます。もとにはもどせません。</span>', () => {
+      ask('本当に消しますか？<br><span style="font-size:15px;color:var(--ink-soft)">この iPad の「あてる順」のデータがすべて消えます。</span>', () => {
+        try { localStorage.removeItem(KEY); localStorage.removeItem(FAIL); } catch (e) {}
+        dropPlain();
+        opened = false;
+        showLock();
+      });
+    }, '全部消す');
+    setTimeout(() => $('pw').focus(), 50);
+  }
+
+  if (!window.crypto || !crypto.subtle) {
+    $('lockBox').innerHTML = '<h1>あてる順</h1><p class="msg">この開き方では暗号化が使えません。https のページ（教材ラボ）から開いてください。</p>';
+  } else showLock();
 })();
 </script>
 </body>
